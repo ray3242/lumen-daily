@@ -3,6 +3,8 @@ import './compact.css';
 import { useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import { createRoot } from 'react-dom/client';
+import { context, showToast } from '@devvit/web/client';
+import { progressKey, readProgress, store, stored } from './progress';
 import { simulate } from '../shared/puzzle';
 import type { Puzzle } from '../shared/puzzle';
 import type { Profile, Result } from '../shared/service';
@@ -57,27 +59,81 @@ export function App() {
   const [seconds, setSeconds] = useState(0);
   const [phase, setPhase] = useState<'start' | 'play' | 'result'>('start');
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
+  const [notice, setNotice] = useState<{ message: string }>();
   const [busy, setBusy] = useState(false);
   const [muted, setMuted] = useState(true);
   const [board, setBoard] = useState<Board>({ top: [], rank: null });
-  const [hint, setHint] = useState(!localStorage.getItem('lumen-played'));
+  const [hint, setHint] = useState(!stored('lumen-played'));
   const [remaining, setRemaining] = useState(0);
   const started = useRef(0);
   const buttons = useRef<(HTMLButtonElement | null)[]>([]);
   const audio = useRef<AudioContext | null>(null);
+  function initialize(d: Init) {
+    setData(d);
+    const progress =
+      !d.result &&
+      readProgress(stored(progressKey(d.puzzle, d.username)), d.puzzle);
+    setStates(
+      progress ? progress.states : d.puzzle.mirrors.map((m) => m.initial)
+    );
+    if (progress) {
+      setHistory(progress.history);
+      setTaps(progress.taps);
+      started.current = progress.startedAt;
+      setSeconds(
+        Math.min(86399, Math.floor((Date.now() - progress.startedAt) / 1000))
+      );
+      setPhase('play');
+    }
+  }
   useEffect(() => {
     api<Init>('init')
-      .then((d) => {
-        setData(d);
-        setStates(d.puzzle.mirrors.map((m) => m.initial));
-      })
+      .then(initialize)
       .catch((e) => setError(e.message));
   }, []);
   useEffect(() => {
+    if (!data) return;
+    const key = progressKey(data.puzzle, data.username);
+    if (data.result) store(key, null);
+    else if (phase === 'play')
+      store(
+        key,
+        JSON.stringify({
+          puzzle: JSON.stringify(data.puzzle),
+          states,
+          history,
+          taps,
+          startedAt: started.current,
+        })
+      );
+  }, [data, phase, states, history, taps]);
+  useEffect(() => {
+    if (!notice) return;
+    const id = setTimeout(() => setNotice(undefined), 3000);
+    return () => clearTimeout(id);
+  }, [notice]);
+  useEffect(() => {
+    if (!error || !data) return;
+    const id = setTimeout(() => setError(''), 3000);
+    return () => clearTimeout(id);
+  }, [error, data]);
+  function notify(message: string) {
+    if (context?.postId) {
+      try {
+        showToast(message);
+        return;
+      } catch {
+        /* Fall back to in-post feedback. */
+      }
+    }
+    setNotice({ message });
+  }
+  useEffect(() => {
     const id = setInterval(() => {
       if (phase === 'play')
-        setSeconds(Math.floor((Date.now() - started.current) / 1000));
+        setSeconds(
+          Math.min(86399, Math.floor((Date.now() - started.current) / 1000))
+        );
       setRemaining(
         Math.max(
           0,
@@ -135,7 +191,7 @@ export function App() {
     setHistory((h) => [...h, i]);
     setTaps((t) => t + 1);
     setHint(false);
-    localStorage.setItem('lumen-played', '1');
+    store('lumen-played', '1');
     setError('');
   }
   async function submit() {
@@ -161,9 +217,9 @@ export function App() {
     setBusy(true);
     try {
       const r = await api<{ message: string }>(name, {});
-      setNotice(r.message);
+      notify(r.message);
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : 'Try again later.');
+      notify(e instanceof Error ? e.message : 'Try again later.');
     } finally {
       setBusy(false);
     }
@@ -179,10 +235,7 @@ export function App() {
             onClick={() => {
               setError('');
               api<Init>('init')
-                .then((d) => {
-                  setData(d);
-                  setStates(d.puzzle.mirrors.map((m) => m.initial));
-                })
+                .then(initialize)
                 .catch((e) => setError(e.message));
             }}
           >
@@ -531,7 +584,7 @@ export function App() {
         )}
         {notice && (
           <p className="message" role="status">
-            {notice}
+            {notice.message}
           </p>
         )}
       </section>

@@ -456,8 +456,9 @@ b {
   color: var(--muted);
 }
 .message {
+  pointer-events: none;
   position: absolute;
-  bottom: 0;
+  top: 0;
   left: 0;
   right: 0;
   background: #1d3643;
