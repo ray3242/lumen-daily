@@ -52,7 +52,7 @@ Vitest covers 365 consecutive dates, all board sizes/difficulty levels, exact mi
 - `tests/`: Vitest suite.
 - `docs/`: submission copy and demo shot list.
 
-Started from the official [reddit/devvit-template-react](https://github.com/reddit/devvit-template-react) template (Devvit 0.15.4). The current template uses Hono, an Express-style HTTP router. Communication uses small JSON endpoints rather than the unused tRPC outline in the template agent notes.
+Started from the official [reddit/devvit-template-react](https://github.com/reddit/devvit-template-react) template (Devvit 0.15.4). The current template uses Hono, an Express-style HTTP router. Communication uses small JSON endpoints with shared rules and types under `src/shared`.
 
 ### Puzzle construction and calibration
 

@@ -2,22 +2,25 @@ You are writing a Devvit web application that will be executed on Reddit.com.
 
 ## Tech Stack
 
-- **Frontend**: React 19, Tailwind CSS 4, Vite
-- **Backend**: Node.js v22 serverless environment (Devvit), Hono, TRPC
-- **Communication**: tRPC v11 for end-to-end type safety
+- **Frontend**: React 19, TypeScript, Vite, plain CSS and SVG. Styles live in `src/client/index.css`, `tokens.css` and `compact.css`.
+- **Backend**: Node.js 22 serverless environment (Devvit), Hono.
+- **Communication**: Plain `fetch` requests to JSON `/api/*` endpoints. Shared rules and types live in `src/shared`; there is no tRPC router.
 
 ## Layout & Architecture
 
 - `/src/server`: **Backend Code**. This runs in a secure, serverless environment.
-  - `trpc.ts`: Defines the API router and procedures.
-  - `index.ts`: Main server entry point (Hono app).
+  - `index.ts`: Main Hono app, JSON API, daily post creation, moderator menu, install trigger and scheduled job.
   - Access `redis`, `reddit`, and `context` here via `@devvit/web/server`.
 - `/src/client`: **Frontend Code**. This is executed inside of an iFrame on reddit.com
   - To add an entrypoint, create a HTML file and add to the mapping inside of `devvit.json`
   - Entrypoints:
-    - `game.html`: The main React entry point (Expanded View).
-    - `splash.html`: The initial React entry point (Inline View). This will be shown in the reddit.com feed. Please keep it fast and keep heavy dependencies inside of `game.html`
-- `/src/shared`: **Shared Code**. Code to share between the client and server
+    - `game.html`: The React entry point for both inline and expanded play. Keep the start screen usable at 360×512.
+  - `game.tsx`: Game screens, interactions and JSON API calls.
+- `/src/shared`: **Shared Code** used by the client, server and local harness.
+  - `puzzle.ts`: Deterministic generation, beam simulation, solver and puzzle types.
+  - `service.ts`: Submission validation, best results, streaks, leaderboard and storage interfaces. Production uses Redis WATCH/MULTI; `MemoryStore` emulates transactions for local use.
+- `/tools/local.ts`: Browser harness with the same `GameService` and in-memory storage. Local-only reset and solution endpoints must not be exposed in production.
+- `/tests/puzzle.test.ts`: Generator, validation, persistence and streak tests.
 
 ## Frontend
 
@@ -36,7 +39,11 @@ You are writing a Devvit web application that will be executed on Reddit.com.
 
 - `npm run type-check`: Check typescript types
 - `npm run lint`: Check the linter
+- `npm test`: Run the Vitest suite
 - `npm run test -- my-file-name`: Run tests isolated to a file
+- `npm run build`: Build the client and server
+- `npm run dev:local`: Start the browser harness at `http://localhost:5173/game.html` (API on 3001), without Reddit login
+- `npm run validate:config`: Validate against the official Devvit schema (requires network, not login)
 
 ## Code Style
 
