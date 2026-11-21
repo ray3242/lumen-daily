@@ -32,9 +32,11 @@
     margin-bottom: 8px;
   }
   .preview {
-    min-width: 110px;
-    width: 125px;
+    min-width: 148px;
+    width: 148px;
     margin: 8px 0;
+    padding: 8px;
+    transform: none;
   }
   .daily-meta {
     margin: 4px 0 8px;

@@ -342,7 +342,11 @@ export function App() {
                 <span>
                   {dateLabel} <b>·</b> {p.difficulty}
                 </span>
-                <span>{data.profile.streak} day streak</span>
+                <span>
+                  {data.profile.streak
+                    ? `${data.profile.streak} day streak`
+                    : 'Start your streak'}
+                </span>
               </div>
               <button className="primary" onClick={start}>
                 {result ? 'View your result' : 'Play today’s puzzle'}{' '}
@@ -385,7 +389,7 @@ export function App() {
                   ? 'All crystals lit. Keep this route.'
                   : hint
                     ? 'Tap a mirror to turn it.'
-                    : 'Light every crystal with the fewest turns.'}
+                    : 'Light every crystal to save your result.'}
               </p>
               <div className="controls">
                 <button
@@ -421,7 +425,7 @@ export function App() {
                   ? 'Saving…'
                   : beam.solved
                     ? 'Save your result'
-                    : 'Find the route'}
+                    : 'Light all crystals to save'}
                 <span aria-hidden="true">↗</span>
               </button>
             </div>

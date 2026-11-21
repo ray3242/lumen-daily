@@ -1,4 +1,4 @@
-import { chromium } from '@playwright/test';
+import { chromium, expect } from '@playwright/test';
 const browser = await chromium.launch({
   executablePath: '/home/ubuntu/.local/bin/google-chrome',
   args: ['--no-sandbox'],
@@ -8,6 +8,7 @@ for (const [name, width, height] of [
   ['mobile', 390, 780],
   ['inline', 360, 512],
 ] as const) {
+  await fetch('http://localhost:3001/api/local-reset', { method: 'POST' });
   const context = await browser.newContext({
     viewport: { width, height },
     reducedMotion: 'reduce',
@@ -25,6 +26,19 @@ for (const [name, width, height] of [
   await page.screenshot({
     path: `/home/ubuntu/repos/lumen-shots/${name}-start.png`,
   });
+  const previewFits = await page.locator('.preview .board').evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    return (
+      r.top >= 0 &&
+      r.bottom <= innerHeight &&
+      r.left >= 0 &&
+      r.right <= innerWidth
+    );
+  });
+  expect(previewFits).toBe(true);
+  await expect(
+    page.getByText('Start your streak', { exact: true })
+  ).toBeVisible();
   const init = await (
     await page.request.get('http://localhost:5173/api/init')
   ).json();
@@ -38,6 +52,7 @@ for (const [name, width, height] of [
   await page.keyboard.press('ArrowRight');
   await page.keyboard.press('Enter');
   await page.getByRole('button', { name: 'Reset', exact: true }).click();
+  await page.waitForTimeout(1250);
   const different = solution.states
     .map((s: number, i: number) =>
       s !== init.puzzle.mirrors[i].initial ? i : -1
@@ -59,9 +74,13 @@ for (const [name, width, height] of [
     const r = el.getBoundingClientRect();
     return r.top >= 0 && r.bottom <= innerHeight;
   });
+  expect(fits).toBe(true);
+  await expect(
+    page.locator('.stats > div').nth(1).locator('strong')
+  ).not.toHaveText('00:00');
   console.log(
     name,
-    'start/play/result, keyboard, submit: OK; result fits:',
+    'start/play/result, preview bounds, keyboard, elapsed timer, submit: OK; result fits:',
     fits,
     'console errors:',
     JSON.stringify(errors)
