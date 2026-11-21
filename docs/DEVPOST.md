@@ -1,5 +1,13 @@
 # Lumen — a daily light puzzle
 
+## Project links
+
+- App listing: https://developers.reddit.com/apps/lumen-daily
+- Demo post: <DEMO_POST_URL>
+- Test subreddit: <SUBREDDIT_URL>
+- Video: <YOUTUBE_URL>
+- Repo: https://github.com/ray3242/lumen-daily
+
 ## Inspiration
 
 I wanted a daily puzzle that would work inside a Reddit post without a tutorial screen. A moving beam makes the rules visible: turn a mirror and see what changes.
@@ -34,7 +42,7 @@ The beam is the most useful explanation. Players should be able to try a move be
 
 ## What's next
 
-Reddit upload and playtesting still need the owner's account. I would use those sessions to tune difficulty, verify user-action permissions, test the daily cron and harden concurrent score writes. A move replay protocol would make competitive rankings harder to manipulate. I would not claim these integrations have been exercised on Reddit yet.
+I want to tune the weekday difficulty curve from real play: where people pause, how often they reset, and how close they finish to par. A move-replay protocol would make competitive rankings harder to manipulate. Weekly board themes and a browsable archive would give regular players more ways to return without changing the daily rules.
 
 ## Built with
 
@@ -42,9 +50,11 @@ Devvit Web, React, TypeScript, Vite, Hono, Redis, SVG, WebAudio, Vitest and Play
 
 ## Testing instructions for judges
 
-1. Install Node 22.12+, run `npm ci`, then `npm run dev:local`.
-2. Open http://localhost:5173/game.html and select Play today's puzzle.
-3. Tap cyan mirrors until all crystals glow. Save the result to see par, time, streak and rank.
-4. Try keyboard arrows and Enter/Space; try undo, reset and the sound toggle.
-5. Run `npm test`, `npm run type-check` and `npm run build`.
-6. Reddit sharing, flair, subscription and scheduled posts require an installed, approved app. The local harness labels those actions as previews rather than pretending to post.
+1. Open the demo post: <DEMO_POST_URL> in the public test subreddit: <SUBREDDIT_URL>.
+2. Select **Play today’s puzzle**. Tap cyan mirrors to turn them and guide the amber beam through every crystal. No installation is needed to play the post.
+3. When every crystal glows, select **Save your result** to see taps against par, elapsed time, streak and rank. Sign in to Reddit to save a score.
+4. Try undo, reset, the sound toggle, or arrow keys and Enter/Space. Sharing a spoiler-free comment is a separate, optional action; it is never required to keep playing.
+
+### Local alternative
+
+Install Node 22.12+, clone the repository, run `npm ci` and `npm run dev:local`, then open http://localhost:5173/game.html. The same puzzle and validation rules run locally. Sharing, flair and subscription are labeled previews and do not contact Reddit. To check the code, run `npm test`, `npm run type-check` and `npm run build`.
