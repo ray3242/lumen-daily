@@ -3,9 +3,9 @@
 ## Project links
 
 - App listing: https://developers.reddit.com/apps/lumen-daily
-- Demo post: <DEMO_POST_URL>
-- Test subreddit: <SUBREDDIT_URL>
-- Video: <YOUTUBE_URL>
+- Demo post: `<DEMO_POST_URL>`
+- Test subreddit: `<SUBREDDIT_URL>`
+- Video: `<YOUTUBE_URL>`
 - Repo: https://github.com/ray3242/lumen-daily
 
 ## Inspiration
@@ -50,7 +50,7 @@ Devvit Web, React, TypeScript, Vite, Hono, Redis, SVG, WebAudio, Vitest and Play
 
 ## Testing instructions for judges
 
-1. Open the demo post: <DEMO_POST_URL> in the public test subreddit: <SUBREDDIT_URL>.
+1. Open the demo post: `<DEMO_POST_URL>` in the public test subreddit: `<SUBREDDIT_URL>`.
 2. Select **Play today’s puzzle**. Tap cyan mirrors to turn them and guide the amber beam through every crystal. No installation is needed to play the post.
 3. When every crystal glows, select **Save your result** to see taps against par, elapsed time, streak and rank. Sign in to Reddit to save a score.
 4. Try undo, reset, the sound toggle, or arrow keys and Enter/Space. Sharing a spoiler-free comment is a separate, optional action; it is never required to keep playing.

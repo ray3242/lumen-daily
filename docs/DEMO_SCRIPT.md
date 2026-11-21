@@ -9,3 +9,18 @@
 - **50–55s, close:** Hold the result. Voice: “Lumen. Turn the mirrors. Light every crystal.”
 
 Record the local harness at 390×780 and 1280×800. `tools/screenshots.ts` demonstrates solving via the local-only solution endpoint; the production server has no such route. Capture Reddit integration footage only after owner playtesting. Keep the video below 60 seconds.
+
+## Supplied gameplay recordings
+
+`/home/ubuntu/repos/lumen-shots/demo-portrait.mp4` (540×960) and `demo-landscape.mp4` (1280×720) are silent, approximately 25-second H.264 gameplay previews. They show the start, first-turn hint, six real mirror taps spaced 900ms apart, solved board, result card with elapsed time, and optional Share action. The final message explicitly identifies sharing as a local preview; no Reddit comment is posted. They can be uploaded as-is or used beneath narration.
+
+With the local harness running, reproduce the recordings with:
+
+```sh
+npx playwright install ffmpeg
+npx tsx tools/record-demo.ts
+ffmpeg -y -i ../lumen-shots/demo-portrait.webm -c:v libx264 -crf 20 -pix_fmt yuv420p -movflags +faststart ../lumen-shots/demo-portrait.mp4
+ffmpeg -y -i ../lumen-shots/demo-landscape.webm -c:v libx264 -crf 20 -pix_fmt yuv420p -movflags +faststart ../lumen-shots/demo-landscape.mp4
+```
+
+The automation checks that the server saves a real solution at par, that recorded elapsed time matches the result card, and that neither recording produces console errors. Video files stay outside the repository.
