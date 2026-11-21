@@ -115,7 +115,7 @@ async function createDaily() {
 app.post('/internal/menu/post-create', async (c) => {
   const id = await createDaily();
   return c.json({
-    navigateTo: `https://reddit.com/r/${context.subredditName}/comments/${id}`,
+    navigateTo: `https://reddit.com/r/${context.subredditName}/comments/${id.replace(/^t3_/, '')}`,
   });
 });
 app.post('/internal/triggers/on-app-install', async (c) => {
