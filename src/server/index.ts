@@ -7,7 +7,7 @@ import {
   redis,
   reddit,
 } from '@devvit/web/server';
-import { GameService } from '../shared/service';
+import { effectiveProfile, GameService } from '../shared/service';
 import { day, generate } from '../shared/puzzle';
 import type { TriggerResponse } from '@devvit/web/shared';
 import type { TaskResponse } from '@devvit/web/server';
@@ -71,7 +71,7 @@ app.post('/api/flair', async (c) => {
   if (!context.username || !context.userId || !context.subredditName)
     throw new Error('Sign in to set flair.');
   try {
-    const p = await game.profile(context.userId);
+    const p = effectiveProfile(await game.profile(context.userId));
     await reddit.setUserFlair({
       subredditName: context.subredditName,
       username: context.username,

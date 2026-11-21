@@ -32,6 +32,12 @@ export type Store = {
   zRank(key: string, member: string): Promise<number | undefined>;
 };
 export const emptyProfile = (): Profile => ({ streak: 0, total: 0, last: '' });
+export function effectiveProfile(profile: Profile, today = day()): Profile {
+  return {
+    ...profile,
+    streak: dayIndex(today) - dayIndex(profile.last) > 1 ? 0 : profile.streak,
+  };
+}
 export function advance(profile: Profile, date: string): Profile {
   if (profile.last >= date) return profile;
   return {
@@ -57,8 +63,7 @@ export class GameService {
     );
   }
   async init(user: string, username: string, date: string) {
-    const profile = await this.profile(user);
-    if (dayIndex(this.today()) - dayIndex(profile.last) > 1) profile.streak = 0;
+    const profile = effectiveProfile(await this.profile(user), this.today());
     return {
       puzzle: generate(date),
       profile,

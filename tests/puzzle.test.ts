@@ -3,6 +3,7 @@ import { generate, simulate, solve } from '../src/shared/puzzle';
 import {
   advance,
   emptyProfile,
+  effectiveProfile,
   GameService,
   MemoryStore,
 } from '../src/shared/service';
@@ -226,6 +227,22 @@ describe('server validation and persistence', () => {
   );
 });
 describe('UTC streaks', () => {
+  it.each([
+    ['2026-05-17', 5],
+    ['2026-05-18', 5],
+    ['2026-05-19', 0],
+  ])(
+    'uses the same effective streak for init and flair on %s',
+    async (today, streak) => {
+      const stored = { streak: 5, total: 10, last: '2026-05-17' };
+      const store = new MemoryStore();
+      await store.set('user:a', JSON.stringify(stored));
+      const s = new GameService(store, () => today);
+      expect(effectiveProfile(stored, today)).toEqual({ ...stored, streak });
+      expect((await s.init('a', 'Alice', today)).profile.streak).toBe(streak);
+      expect(await s.profile('a')).toEqual(stored);
+    }
+  );
   it('handles midnight, year boundary, skipped dates and repeated dates', () => {
     const first = advance(emptyProfile(), '2025-12-31');
     expect(first.streak).toBe(1);
