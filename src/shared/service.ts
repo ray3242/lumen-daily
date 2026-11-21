@@ -6,7 +6,18 @@ export type Result = {
   username: string;
 };
 export type Profile = { streak: number; total: number; last: string };
+export type Transaction = {
+  multi(): Promise<void>;
+  set(key: string, value: string): Promise<unknown>;
+  zAdd(
+    key: string,
+    member: { member: string; score: number }
+  ): Promise<unknown>;
+  exec(): Promise<unknown[]>;
+  discard(): Promise<void>;
+};
 export type Store = {
+  watch(...keys: string[]): Promise<Transaction>;
   get(key: string): Promise<string | undefined>;
   set(key: string, value: string): Promise<unknown>;
   zAdd(
@@ -95,47 +106,112 @@ export class GameService {
       throw new Error('Invalid submission');
     if (!simulate(p, states).solved)
       throw new Error('Light every crystal before submitting.');
-    const prior = await this.result(user, date);
     const result: Result = {
       states,
       taps,
       seconds: Math.ceil(seconds),
       username,
     };
-    if (
-      !prior ||
-      taps * 100000 + result.seconds < prior.taps * 100000 + prior.seconds
-    ) {
-      await this.store.set(`result:${date}:${user}`, JSON.stringify(result));
-      await this.store.zAdd(`board:${date}`, {
-        member: user,
-        score: taps * 100000 + result.seconds,
-      });
-    }
-    if (!prior && date === this.today())
-      await this.store.set(
-        `user:${user}`,
-        JSON.stringify(advance(await this.profile(user), date))
-      );
+    await this.save(user, date, result);
     return {
       ...(await this.init(user, username, date)),
       ...(await this.leaderboard(user, date)),
     };
   }
+  private async save(user: string, date: string, result: Result) {
+    const resultKey = `result:${date}:${user}`;
+    const profileKey = `user:${user}`;
+    const countsForStreak = date === this.today();
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const transaction = await this.store.watch(resultKey, profileKey);
+      try {
+        const prior = await this.result(user, date);
+        const profile = await this.profile(user);
+        const score = (r: Result) => r.taps * 100000 + r.seconds;
+        const best = prior && score(prior) <= score(result) ? prior : result;
+        await transaction.multi();
+        await transaction.set(resultKey, JSON.stringify(best));
+        await transaction.zAdd(`board:${date}`, {
+          member: user,
+          score: score(best),
+        });
+        if (countsForStreak)
+          await transaction.set(
+            profileKey,
+            JSON.stringify(advance(profile, date))
+          );
+        const replies = await transaction.exec();
+        if (replies.length === (countsForStreak ? 3 : 2)) return;
+      } catch (error) {
+        await transaction.discard().catch(() => undefined);
+        if (
+          !(error instanceof Error) ||
+          !/watched|\bwatch\b|\baborted\b|transaction.*conflict/i.test(
+            error.message
+          )
+        )
+          throw error;
+      }
+    }
+    throw new Error('Your score changed in another tab. Please save again.');
+  }
 }
 export class MemoryStore implements Store {
   values = new Map<string, string>();
   boards = new Map<string, Map<string, number>>();
+  private versions = new Map<string, number>();
+  async watch(...keys: string[]): Promise<Transaction> {
+    const snapshot = keys.map((key) => this.versions.get(key) ?? 0);
+    const commands: (() => void)[] = [];
+    let started = false;
+    const queue = (command: () => void) => {
+      if (!started) throw new Error('Call multi before queuing writes.');
+      commands.push(command);
+    };
+    return {
+      multi: async () => {
+        started = true;
+      },
+      set: async (key, value) => {
+        queue(() => this.writeValue(key, value));
+      },
+      zAdd: async (key, member) => {
+        queue(() => this.writeScore(key, member));
+      },
+      discard: async () => {
+        commands.length = 0;
+      },
+      exec: async () => {
+        if (
+          keys.some((key, i) => (this.versions.get(key) ?? 0) !== snapshot[i])
+        )
+          return [];
+        commands.forEach((command) => command());
+        return commands.map(() => 'OK');
+      },
+    };
+  }
+  private touch(key: string) {
+    this.versions.set(key, (this.versions.get(key) ?? 0) + 1);
+  }
+  private writeValue(k: string, v: string) {
+    this.values.set(k, v);
+    this.touch(k);
+  }
+  private writeScore(k: string, m: { member: string; score: number }) {
+    const b = this.boards.get(k) ?? new Map();
+    b.set(m.member, m.score);
+    this.boards.set(k, b);
+    this.touch(k);
+  }
   async get(k: string) {
     return this.values.get(k);
   }
   async set(k: string, v: string) {
-    this.values.set(k, v);
+    this.writeValue(k, v);
   }
   async zAdd(k: string, m: { member: string; score: number }) {
-    const b = this.boards.get(k) ?? new Map();
-    b.set(m.member, m.score);
-    this.boards.set(k, b);
+    this.writeScore(k, m);
   }
   async zRange(k: string, start: number, stop: number) {
     return [...(this.boards.get(k) ?? [])]

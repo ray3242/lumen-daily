@@ -60,7 +60,7 @@ A seeded PRNG traces a self-avoiding route, inserts turns, places 2–5 crystals
 
 ### Trust model and limits
 
-The server derives the date from the post, identifies the player from Devvit context and re-simulates final states. It checks binary states, state count and sensible tap/time bounds; it does not trust a client-supplied solved flag. As with many lightweight puzzle games, timing and the claimed tap count above the final-state lower bound are client-reported, not an anti-cheat replay protocol. Redis writes are sequential, not transactional; simultaneous requests from multiple tabs can race. The owner should load-test and strengthen write coordination before a large launch.
+The server derives the date from the post, identifies the player from Devvit context and re-simulates final states. It checks binary states, state count and sensible tap/time bounds; it does not trust a client-supplied solved flag. As with many lightweight puzzle games, timing and the claimed tap count above the final-state lower bound are client-reported, not an anti-cheat replay protocol. Score saves use Redis WATCH/MULTI to compare the best result and update the leaderboard and profile together. Conflicts retry with fresh state; repeat saves repair incomplete older writes without counting a daily solve twice. Live Redis behavior and launch-scale traffic still need platform testing.
 
 ## Reddit integrations
 

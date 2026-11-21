@@ -93,6 +93,137 @@ describe('server validation and persistence', () => {
     });
     expect(await s.profile('a')).toEqual(emptyProfile());
   });
+  it.each([true, false])(
+    'never replaces a better score under concurrent submissions (best first: %s)',
+    async (bestFirst) => {
+      class ContendedStore extends MemoryStore {
+        conflicts = 0;
+        override async watch(...keys: string[]) {
+          const tx = await super.watch(...keys);
+          return {
+            ...tx,
+            exec: async () => {
+              const replies = await tx.exec();
+              if (!replies.length) this.conflicts++;
+              return replies;
+            },
+          };
+        }
+      }
+      const store = new ContendedStore();
+      const s = new GameService(store, () => date);
+      const best = { states: solution.states, taps: solution.par, seconds: 10 };
+      const worse = { ...best, seconds: 100 };
+      await Promise.all(
+        (bestFirst ? [best, worse] : [worse, best]).map((input) =>
+          s.submit('a', 'Alice', date, input)
+        )
+      );
+      expect(store.conflicts).toBeGreaterThan(0);
+      expect((await s.result('a', date))?.seconds).toBe(10);
+      expect((await s.leaderboard('a', date)).top[0]?.seconds).toBe(10);
+      expect((await s.profile('a')).total).toBe(1);
+    }
+  );
+  it.each(['leaderboard', 'profile'])(
+    'repairs a legacy partial save missing %s on retry',
+    async (missing) => {
+      const store = new MemoryStore();
+      const s = new GameService(store, () => date);
+      const best = {
+        states: solution.states,
+        taps: solution.par,
+        seconds: 10,
+        username: 'Alice',
+      };
+      await store.set(`result:${date}:a`, JSON.stringify(best));
+      if (missing === 'profile')
+        await store.zAdd(`board:${date}`, {
+          member: 'a',
+          score: best.taps * 100000 + best.seconds,
+        });
+      await s.submit('a', 'Alice', date, { ...best, seconds: 100 });
+      await s.submit('a', 'Alice', date, best);
+      expect((await s.result('a', date))?.seconds).toBe(10);
+      expect((await s.leaderboard('a', date)).rank).toBe(1);
+      expect(await s.profile('a')).toEqual({ streak: 1, total: 1, last: date });
+    }
+  );
+  it('recovers after an acknowledged commit is lost without counting the solve twice', async () => {
+    class LostResponseStore extends MemoryStore {
+      fail = true;
+      override async watch(...keys: string[]) {
+        const tx = await super.watch(...keys);
+        return {
+          ...tx,
+          exec: async () => {
+            const replies = await tx.exec();
+            if (this.fail) {
+              this.fail = false;
+              throw new Error('Lost response');
+            }
+            return replies;
+          },
+        };
+      }
+    }
+    const s = new GameService(new LostResponseStore(), () => date);
+    const input = { states: solution.states, taps: solution.par, seconds: 10 };
+    await expect(s.submit('a', 'Alice', date, input)).rejects.toThrow(
+      'Lost response'
+    );
+    await s.submit('a', 'Alice', date, input);
+    expect((await s.profile('a')).total).toBe(1);
+    expect((await s.leaderboard('a', date)).rank).toBe(1);
+  });
+  it.each(['leaderboard', 'profile'])(
+    'does not partially save when the %s write fails before commit',
+    async (failure) => {
+      class FailingStore extends MemoryStore {
+        fail = true;
+        override async watch(...keys: string[]) {
+          const tx = await super.watch(...keys);
+          return {
+            ...tx,
+            set: async (key: string, value: string) => {
+              if (
+                this.fail &&
+                failure === 'profile' &&
+                key.startsWith('user:')
+              ) {
+                this.fail = false;
+                throw new Error('Write failed');
+              }
+              return tx.set(key, value);
+            },
+            zAdd: async (
+              key: string,
+              member: { member: string; score: number }
+            ) => {
+              if (this.fail && failure === 'leaderboard') {
+                this.fail = false;
+                throw new Error('Write failed');
+              }
+              return tx.zAdd(key, member);
+            },
+          };
+        }
+      }
+      const s = new GameService(new FailingStore(), () => date);
+      const input = {
+        states: solution.states,
+        taps: solution.par,
+        seconds: 10,
+      };
+      await expect(s.submit('a', 'Alice', date, input)).rejects.toThrow(
+        'Write failed'
+      );
+      expect(await s.result('a', date)).toBeNull();
+      await s.submit('a', 'Alice', date, input);
+      expect((await s.profile('a')).total).toBe(1);
+      expect((await s.leaderboard('a', date)).rank).toBe(1);
+    }
+  );
 });
 describe('UTC streaks', () => {
   it('handles midnight, year boundary, skipped dates and repeated dates', () => {
